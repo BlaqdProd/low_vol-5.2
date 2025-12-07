@@ -1,0 +1,43 @@
+name: Run Deriv Trading Bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      breakout_pip:
+        description: 'Breakout pip value to determine win/loss (e.g. 150)'
+        required: true
+        default: '150'
+        type: string
+
+jobs:
+  run-trading-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install websockets python-dotenv
+      
+      - name: Run trading bot
+        env:
+          DERIV_API_TOKEN: ${{ secrets.DERIV_API_TOKEN }}
+          DERIV_APP_ID: ${{ secrets.DERIV_APP_ID }}
+        run: |
+          echo "${{ inputs.breakout_pip }}" | python vol-accumulator-LowVol-V5.2.py
+      
+      - name: Upload log file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trading-bot-log-${{ github.run_number }}
+          path: consol_expansion_bot.log
+          retention-days: 30
