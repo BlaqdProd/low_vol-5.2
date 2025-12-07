@@ -41,7 +41,7 @@ STD_WINDOW = 60                # ticks used for STD calculation
 STD_MAX = 260.0                # upper STD in pips threshold fallback
 STD_MIN = 180.0                # lower STD in pips threshold fallback
 
-MAX_TRADES = 1                # maximum trades per session
+MAX_TRADES = 2                # maximum trades per session
 COOLDOWN_TICKS = 3             # ticks to wait after each trade before allowing another trade
 MONITOR_TICKS_AFTER_TRADE = 3  # how many ticks after trade to watch for breakout spike (~1 sec)
 
@@ -578,3 +578,4 @@ if __name__ == "__main__":
         asyncio.run(tick_stream(breakout_pip))
     except KeyboardInterrupt:
         log("Interrupted by user. Exiting.")
+
