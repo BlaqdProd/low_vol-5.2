@@ -9,12 +9,28 @@ import sys
 from collections import deque, defaultdict
 
 # ---------------- ENV / CONFIG ----------------
+
+# Load .env file if it exists (for local development)
 load_dotenv()
+
 DERIV_TOKEN = os.getenv("DERIV_API_TOKEN")
+DERIV_APP_ID = os.getenv("DERIV_APP_ID")
+
+# Validation with better error messages
 if not DERIV_TOKEN:
-    print("ERROR: DERIV_API_TOKEN not found in environment. Exiting.")
+    print("ERROR: DERIV_API_TOKEN not found in environment.")
+    print("For local development: Add it to your .env file")
+    print("For GitHub Actions: Add it as a repository secret")
     sys.exit(1)
-APP_ID = os.getenv("DERIV_APP_ID") or "80958"
+
+# Use provided APP_ID or fallback
+if not DERIV_APP_ID:
+    DERIV_APP_ID = "80958"
+    print(f"No DERIV_APP_ID found, using default: {DERIV_APP_ID}")
+
+# Debug info (be careful not to log full token!)
+print(f"Token loaded: {len(DERIV_TOKEN)} characters")
+print(f"App ID: {DERIV_APP_ID}")
 
 SYMBOL = "1HZ10V"
 STAKE = 50
@@ -82,20 +98,63 @@ async def send(ws, payload):
     await ws.send(json.dumps(payload))
 
 async def recv(ws):
+    """Receive and parse WebSocket message with detailed error handling."""
     msg_text = await ws.recv()
     msg = json.loads(msg_text)
     if "error" in msg:
-        raise RuntimeError(msg["error"])
+        error_details = msg["error"]
+        error_msg = (
+            f"API Error: {error_details.get('message', 'Unknown error')} | "
+            f"Code: {error_details.get('code', 'N/A')}"
+        )
+        log(error_msg)
+        # Log full error details for debugging
+        log(f"Full error details: {json.dumps(error_details, indent=2)}")
+        raise RuntimeError(error_details)
     return msg
 
-# ---------------- API Calls ----------------
+
 async def authorize(ws):
-    await send(ws, {"authorize": DERIV_TOKEN})
-    resp = await recv(ws)
-    loginid = resp.get("authorize", {}).get("loginid")
-    log(f"🔑 Authorized as {loginid}")
+    """Authorize with Deriv API and validate credentials."""
+    try:
+        log("Attempting authorization...")
+        await send(ws, {"authorize": DERIV_TOKEN})
+        resp = await recv(ws)
+        
+        auth_data = resp.get("authorize", {})
+        loginid = auth_data.get("loginid")
+        balance = auth_data.get("balance")
+        currency = auth_data.get("currency")
+        account_type = auth_data.get("account_type", "unknown")
+        
+        log(f"🔑 Authorization successful!")
+        log(f"   Login ID: {loginid}")
+        log(f"   Account Type: {account_type}")
+        log(f"   Balance: {balance} {currency}")
+        
+        # Verify account has sufficient balance
+        if balance is not None and balance < STAKE:
+            log(f"⚠️  WARNING: Balance ({balance} {currency}) is less than stake amount ({STAKE} {currency})")
+        
+        return True
+        
+    except Exception as e:
+        log(f"❌ Authorization failed!")
+        log(f"   Error: {str(e)}")
+        log("")
+        log("Troubleshooting steps:")
+        log("  1. Verify DERIV_API_TOKEN is valid and not expired")
+        log("  2. Check token has 'Read' and 'Trade' permissions")
+        log("  3. Ensure DERIV_APP_ID is correct")
+        log("  4. Confirm account is active and not restricted")
+        log("")
+        log("To generate a new token:")
+        log("  → Visit: https://app.deriv.com/account/api-token")
+        raise
+
 
 async def proposal_accu(ws):
+    """Request accumulator contract proposal."""
     payload = {
         "proposal": 1,
         "amount": STAKE,
@@ -106,19 +165,29 @@ async def proposal_accu(ws):
         "growth_rate": 0.05,
         "limit_order": {"take_profit": TAKE_PROFIT},
     }
-    await send(ws, payload)
-    while True:
-        msg = await recv(ws)
-        if msg.get("msg_type") == "proposal":
-            return msg["proposal"]["id"], msg["proposal"]
+    
+    try:
+        await send(ws, payload)
+        while True:
+            msg = await recv(ws)
+            if msg.get("msg_type") == "proposal":
+                return msg["proposal"]["id"], msg["proposal"]
+    except Exception as e:
+        log(f"❌ Proposal request failed: {e}")
+        raise
+
 
 async def buy(ws, proposal_id):
-    await send(ws, {"buy": proposal_id, "price": STAKE})
-    while True:
-        msg = await recv(ws)
-        if msg.get("msg_type") == "buy":
-            return msg["buy"]["contract_id"]
-
+    """Execute buy order for given proposal."""
+    try:
+        await send(ws, {"buy": proposal_id, "price": STAKE})
+        while True:
+            msg = await recv(ws)
+            if msg.get("msg_type") == "buy":
+                return msg["buy"]["contract_id"]
+    except Exception as e:
+        log(f"❌ Buy order failed: {e}")
+        raise
 # ---------------- Confluence utility functions ----------------
 def compute_atr(pip_moves_deque: deque, window: int) -> float:
     if len(pip_moves_deque) < 1:
@@ -149,7 +218,7 @@ def recent_micro_spike(pip_moves_deque: deque, limit: float, lookback: int) -> b
 # ---------------- STATE MACHINE BOT ----------------
 async def tick_stream(breakout_pip: float):
     global STD_MIN, STD_MAX
-    uri = f"wss://ws.derivws.com/websockets/v3?app_id={APP_ID}"
+    uri = f"wss://ws.derivws.com/websockets/v3?app_id={DERIV_APP_ID}"
     log(f"Starting bot for symbol={SYMBOL} | breakout_pip={breakout_pip} | STRATEGY_WARMUP_TICKS={STRATEGY_WARMUP_TICKS}")
     async with websockets.connect(uri) as ws:
         await authorize(ws)

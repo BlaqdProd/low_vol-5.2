@@ -27,12 +27,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install websockets python-dotenv
       
+      - name: Validate secrets
+        env:
+          DERIV_API_TOKEN: ${{ secrets.DERIV_API_TOKEN }}
+          DERIV_APP_ID: ${{ secrets.DERIV_APP_ID }}
+        run: |
+          if [ -z "$DERIV_API_TOKEN" ]; then
+            echo "ERROR: DERIV_API_TOKEN secret is not set!"
+            echo "Please add it in repository Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "✓ DERIV_API_TOKEN is set (${#DERIV_API_TOKEN} characters)"
+          if [ -n "$DERIV_APP_ID" ]; then
+            echo "✓ DERIV_APP_ID is set: $DERIV_APP_ID"
+          else
+            echo "⚠ DERIV_APP_ID not set, will use default"
+          fi
+      
       - name: Run trading bot
         env:
           DERIV_API_TOKEN: ${{ secrets.DERIV_API_TOKEN }}
           DERIV_APP_ID: ${{ secrets.DERIV_APP_ID }}
         run: |
           echo "${{ inputs.breakout_pip }}" | python vol-accumulator-LowVol-V5.2.py
+        timeout-minutes: 60
       
       - name: Upload log file
         if: always()
