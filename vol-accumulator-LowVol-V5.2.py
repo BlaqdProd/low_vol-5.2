@@ -66,8 +66,8 @@ STRATEGY_WARMUP_TICKS = 150    # collect 150 ticks before entering study
 # ---------------- Study-phase settings ----------------
 STUDY_TICKS = 300                # number of finalized std observations to collect for study
 STUDY_LOOKAHEAD = 3              # watch this many ticks after each studied tick for a spike
-BUCKET_WIDTH = 10.0              # pips bucket width for grouping STD(pips)
-MIN_SAMPLES_PER_BUCKET = 8       # require at least this many samples to consider a bucket
+BUCKET_WIDTH = 20.0              # pips bucket width for grouping STD(pips)
+MIN_SAMPLES_PER_BUCKET = 10       # require at least this many samples to consider a bucket
 SPIKE_DETECT_THRESHOLD = MICRO_SPIKE_LIMIT  # treat moves > this as a spike for study
 
 # ---------------- Moderate looseness & multi-bucket settings ----------------
@@ -578,4 +578,5 @@ if __name__ == "__main__":
         asyncio.run(tick_stream(breakout_pip))
     except KeyboardInterrupt:
         log("Interrupted by user. Exiting.")
+
 
