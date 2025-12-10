@@ -22,8 +22,8 @@ TAKE_PROFIT = 5
 CURRENCY = "USD"
 
 STD_WINDOW = 60                # ticks used for STD calculation
-STD_MAX = 260.0                # upper STD in pips threshold fallback
-STD_MIN = 180.0                # lower STD in pips threshold fallback
+STD_MAX = 260.0                # upper STD in pips threshold fallback (not used under Option C)
+STD_MIN = 180.0                # lower STD in pips threshold fallback (not used under Option C)
 
 MAX_TRADES = 1                # maximum trades per session
 COOLDOWN_TICKS = 3             # ticks to wait after each trade before allowing another trade
@@ -50,8 +50,8 @@ STRATEGY_WARMUP_TICKS = 150    # collect 150 ticks before entering study
 # ---------------- Study-phase settings ----------------
 STUDY_TICKS = 300                # number of finalized std observations to collect for study
 STUDY_LOOKAHEAD = 3              # watch this many ticks after each studied tick for a spike
-BUCKET_WIDTH = 300.0              # pips bucket width for grouping STD(pips)
-MIN_SAMPLES_PER_BUCKET = 10       # require at least this many samples to consider a bucket
+BUCKET_WIDTH = 10.0              # pips bucket width for grouping STD(pips)
+MIN_SAMPLES_PER_BUCKET = 8       # require at least this many samples to consider a bucket
 SPIKE_DETECT_THRESHOLD = MICRO_SPIKE_LIMIT  # treat moves > this as a spike for study
 
 # ---------------- Moderate looseness & multi-bucket settings ----------------
@@ -61,7 +61,7 @@ RECENT_SMALL_MOVE_PIPS = 60.0   # require last 3 moves < this for near-boundary 
 RELAXED_SPIKE_LIMIT = 350.0     # relaxed micro-spike threshold when within near-boundary allowance
 
 # ---------------- Multi-bucket risk threshold (Option A) ----------------
-RISK_THRESHOLD = 0.25           # choose all buckets with spike rate <= this (40%)
+RISK_THRESHOLD = 0.30           # choose all buckets with spike rate <= this (40%)
 
 # ---------------- Helpers ----------------
 def log(message: str):
@@ -188,6 +188,7 @@ async def tick_stream(breakout_pip: float):
         bucket_spikes = defaultdict(int)
 
         allowed_buckets = []  # list of (low, high) pips ranges considered safe
+        trading_enabled = False  # IMPORTANT: Option C - will be True only when allowed_buckets non-empty after study
         def bucket_of(std_pips):
             return (int(std_pips // BUCKET_WIDTH)) * BUCKET_WIDTH
 
@@ -312,16 +313,25 @@ async def tick_stream(breakout_pip: float):
                         if new_allowed:
                             log(f"🎯 First-study selected buckets: {', '.join([f'{low:.0f}-{high:.0f}' for low,high in new_allowed])}")
                             allowed_buckets = new_allowed
+                            trading_enabled = True  # enable trading because we have safe buckets
+                            log("▶ Trading ENABLED — safe buckets found.")
                         else:
-                            log("⚠️ First-study: no buckets met the risk threshold; keeping fallback STD_MIN/STD_MAX")
-                            allowed_buckets = [(STD_MIN, STD_MAX)]
+                            # Option C behavior: no fallback; enter waiting mode until rolling study finds buckets
+                            allowed_buckets = []
+                            trading_enabled = False
+                            log("⚠️ First-study: no buckets met the risk threshold; ENTERING WAITING_FOR_BUCKETS mode. No trades will be attempted until a safe bucket appears in rolling study.")
                         first_study_shown = True
                     else:
                         # rolling study - silent unless bucket set changes
                         if new_allowed and set(new_allowed) != set(allowed_buckets):
                             allowed_buckets = new_allowed
                             log(f"🔄 STD profile updated — new safe buckets: {', '.join([f'{low:.0f}-{high:.0f}' for low,high in allowed_buckets])}")
-                        # if new_allowed empty: keep previous allowed_buckets
+                            # If trading was disabled while waiting and now we have allowed buckets, enable trading
+                            if not trading_enabled and allowed_buckets:
+                                trading_enabled = True
+                                log("▶ Trading ENABLED — rolling study produced safe buckets.")
+                        # if new_allowed empty: keep previous allowed_buckets (do not set fallback)
+                        # Keep study_active True so rolling studies continue silently
 
                     # Reset study trackers for next rolling cycle
                     study_entries.clear()
@@ -355,6 +365,13 @@ async def tick_stream(breakout_pip: float):
                 log(f"[{int(epoch)}] Price: {price:.3f} | Move: {pip_move:+.1f} | STD(pips): {std_pips:.1f} | State: {state}")
             else:
                 log(f"[{int(epoch)}] Price: {price:.3f} | Move: {pip_move:+.1f} | STD: calculating... | State: {state}")
+
+            # If trading is disabled due to no safe buckets (Option C), skip all trade logic
+            if not trading_enabled:
+                # Provide periodic logs (not too spammy)
+                log("⏳ WAITING_FOR_BUCKETS: No safe STD buckets yet. Rolling study continues — will enable trading once a safe bucket appears.")
+                prev_price = price
+                continue
 
             # FIRST: handle monitoring of the just-executed trade (if any)
             if monitoring:
