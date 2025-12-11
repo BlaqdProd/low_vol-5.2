@@ -1,0 +1,43 @@
+name: Deriv Trading Bot 2 (Manual Trigger)
+
+on:
+  workflow_dispatch:
+    inputs:
+      spike_threshold:
+        description: 'Pip spike threshold (e.g., 200)'
+        required: true
+        default: '200'
+        type: string
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install websockets python-dotenv
+      
+      - name: Run trading bot
+        env:
+          DERIV_APP_ID: ${{ secrets.DERIV_APP_ID }}
+          DERIV_API_TOKEN: ${{ secrets.DERIV_API_TOKEN }}
+        run: |
+          echo "${{ github.event.inputs.spike_threshold }}" | python vol-accumulator-ATR2.py
+      
+      - name: Upload log file
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: bot-logs
+          path: atr_volatility_spike_log.txt
+          retention-days: 30
