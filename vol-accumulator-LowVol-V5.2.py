@@ -41,11 +41,11 @@ Z_THRESHOLD = 0.3              # max allowed z-score for current STD
 TICK_DELAY_WINDOW = 20         # how many recent tick delays to average (for tick speed)
 TICK_DELAY_THRESHOLD_MS = 80   # average tick delay (ms) must be > this (i.e., ticks must be relatively slow)
 
-MICRO_SPIKE_HISTORY = 10       # check last N moves for local spikes
-MICRO_SPIKE_LIMIT = 230.0      # if any move > this in last MICRO_SPIKE_HISTORY ticks, block entry
+MICRO_SPIKE_HISTORY = 20       # check last N moves for local spikes
+MICRO_SPIKE_LIMIT = 200.0      # if any move > this in last MICRO_SPIKE_HISTORY ticks, block entry
 
 # Strategy warm-up
-STRATEGY_WARMUP_TICKS = 150    # collect 150 ticks before entering study
+STRATEGY_WARMUP_TICKS = 100    # collect 150 ticks before entering study
 
 # ---------------- Study-phase settings ----------------
 STUDY_TICKS = 300                # number of finalized std observations to collect for study
@@ -61,7 +61,7 @@ RECENT_SMALL_MOVE_PIPS = 60.0   # require last 3 moves < this for near-boundary 
 RELAXED_SPIKE_LIMIT = 350.0     # relaxed micro-spike threshold when within near-boundary allowance
 
 # ---------------- Multi-bucket risk threshold (Option A) ----------------
-RISK_THRESHOLD = 0.30           # choose all buckets with spike rate <= this (40%)
+RISK_THRESHOLD = 0.20           # choose all buckets with spike rate <= this (40%)
 
 # ---------------- Helpers ----------------
 def log(message: str):
