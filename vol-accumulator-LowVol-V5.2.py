@@ -51,7 +51,7 @@ STRATEGY_WARMUP_TICKS = 100    # collect 150 ticks before entering study
 STUDY_TICKS = 300                # number of finalized std observations to collect for study
 STUDY_LOOKAHEAD = 3              # watch this many ticks after each studied tick for a spike
 BUCKET_WIDTH = 10.0              # pips bucket width for grouping STD(pips)
-MIN_SAMPLES_PER_BUCKET = 8       # require at least this many samples to consider a bucket
+MIN_SAMPLES_PER_BUCKET = 10       # require at least this many samples to consider a bucket
 SPIKE_DETECT_THRESHOLD = MICRO_SPIKE_LIMIT  # treat moves > this as a spike for study
 
 # ---------------- Moderate looseness & multi-bucket settings ----------------
@@ -61,7 +61,7 @@ RECENT_SMALL_MOVE_PIPS = 60.0   # require last 3 moves < this for near-boundary 
 RELAXED_SPIKE_LIMIT = 350.0     # relaxed micro-spike threshold when within near-boundary allowance
 
 # ---------------- Multi-bucket risk threshold (Option A) ----------------
-RISK_THRESHOLD = 0.20           # choose all buckets with spike rate <= this (40%)
+RISK_THRESHOLD = 0.30           # choose all buckets with spike rate <= this (40%)
 
 # ---------------- Helpers ----------------
 def log(message: str):
