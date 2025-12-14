@@ -50,8 +50,8 @@ STRATEGY_WARMUP_TICKS = 100    # collect 150 ticks before entering study
 # ---------------- Study-phase settings ----------------
 STUDY_TICKS = 300                # number of finalized std observations to collect for study
 STUDY_LOOKAHEAD = 3              # watch this many ticks after each studied tick for a spike
-BUCKET_WIDTH = 10.0              # pips bucket width for grouping STD(pips)
-MIN_SAMPLES_PER_BUCKET = 10       # require at least this many samples to consider a bucket
+BUCKET_WIDTH = 300.0              # pips bucket width for grouping STD(pips)
+MIN_SAMPLES_PER_BUCKET = 8       # require at least this many samples to consider a bucket
 SPIKE_DETECT_THRESHOLD = MICRO_SPIKE_LIMIT  # treat moves > this as a spike for study
 
 # ---------------- Moderate looseness & multi-bucket settings ----------------
@@ -103,7 +103,7 @@ async def proposal_accu(ws):
         "contract_type": "ACCU",
         "currency": CURRENCY,
         "symbol": SYMBOL,
-        "growth_rate": 0.05,
+        "growth_rate": 0.03,
         "limit_order": {"take_profit": TAKE_PROFIT},
     }
     await send(ws, payload)
