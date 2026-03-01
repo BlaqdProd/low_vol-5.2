@@ -26,4 +26,4 @@ jobs:
         env:
           DERIV_API_TOKEN: ${{ secrets.DERIV_API_TOKEN }}
           DERIV_APP_ID: ${{ secrets.DERIV_APP_ID }}
-        run: python bot.py
+        run: python zero_bot.py
