@@ -1,9 +1,7 @@
 name: Run Zero Trigger Bot
 
 on:
-  workflow_dispatch:  # Manual trigger
-  schedule:
-    - cron: '*/30 * * * *'  # Run every 30 minutes (optional)
+  workflow_dispatch:
 
 jobs:
   run-bot:
